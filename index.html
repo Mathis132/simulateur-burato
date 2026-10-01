@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:#F4F5F2}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Simulateur rachat BURATO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : panneau d'hypothèses à gauche (formulaire de dossier bancaire), contenu à onglets à droite ; synthèse avant le détail. */
+:root{
+  --bg:#F4F5F2; --surface:#FCFCFB; --surface-2:#EDEFEA; --line:#D9DDD5; --ink:#17212B; --ink-2:#4A5560; --ink-3:#6E7880;
+  --accent:#0A7FA8; --accent-ink:#075E7D; --accent-soft:#DDEEF4;
+  --old:#C0782A; --new:#0A7FA8;
+  --good:#2E7D4F; --good-soft:#E1F1E6; --warn:#A8671A; --warn-soft:#F7EBD9; --bad:#B03A2E; --bad-soft:#F6E1DE;
+  --f-display:"Newsreader", Georgia, "Times New Roman", serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F151C; --surface:#131A22; --surface-2:#1A232D; --line:#2A3542; --ink:#E6EBEF; --ink-2:#AEB8C1; --ink-3:#8793A0;
+  --accent:#2A9FC4; --accent-ink:#7CC6E0; --accent-soft:#16303C;
+  --old:#C98232; --new:#2A9FC4;
+  --good:#5FBF86; --good-soft:#15301F; --warn:#E0A558; --warn-soft:#33260F; --bad:#E57A6E; --bad-soft:#3A1A17; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F151C; --surface:#131A22; --surface-2:#1A232D; --line:#2A3542; --ink:#E6EBEF; --ink-2:#AEB8C1; --ink-3:#8793A0;
+  --accent:#2A9FC4; --accent-ink:#7CC6E0; --accent-soft:#16303C;
+  --old:#C98232; --new:#2A9FC4;
+  --good:#5FBF86; --good-soft:#15301F; --warn:#E0A558; --warn-soft:#33260F; --bad:#E57A6E; --bad-soft:#3A1A17; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:1320px;margin:0 auto}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-block:28px 18px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,3.4vw,36px);line-height:1.1;margin:4px 0 0;text-wrap:balance}
+h1 em{font-style:italic;color:var(--accent-ink);font-weight:500}
+.lede{color:var(--ink-2);max-width:62ch;margin:6px 0 0}
+.hdr-actions{display:grid;gap:8px;justify-items:end}
+@media (max-width:700px){.hdr-actions{justify-items:start}}
+.exp{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn-primary{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:9px 16px;font-weight:600;font-size:13.5px}
+.btn-primary:hover{background:var(--accent-ink)} .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+.btn-primary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.verdict{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);font-weight:500;border:1px solid transparent}
+.verdict.good{background:var(--good-soft);color:var(--good);border-color:color-mix(in srgb,var(--good) 30%,transparent)}
+.verdict.warn{background:var(--warn-soft);color:var(--warn)}
+.verdict.bad{background:var(--bad-soft);color:var(--bad)}
+.verdict .dot{width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px;margin-top:20px;align-items:start}
+@media (max-width:960px){.layout{grid-template-columns:minmax(0,1fr)}}
+/* Panneau hypothèses */
+aside.params{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:960px){aside.params{position:static;max-height:none}}
+aside.params>.ph{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+aside.params h2{font-family:var(--f-display);font-size:18px;margin:0;font-weight:600}
+button{font:inherit;cursor:pointer}
+.btn{background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:4px;padding:4px 10px;font-size:12px}
+.btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+details.grp{border-bottom:1px solid var(--line)}
+details.grp>summary{list-style:none;padding:11px 16px;font-weight:600;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);display:flex;justify-content:space-between;cursor:pointer}
+details.grp>summary::-webkit-details-marker{display:none}
+details.grp>summary::after{content:"+";font-family:var(--f-mono);color:var(--ink-3)}
+details.grp[open]>summary::after{content:"–"}
+.fields{display:grid;gap:9px;padding:0 16px 14px}
+.f{display:grid;grid-template-columns:1fr 118px;align-items:center;gap:8px}
+.f label{font-size:12.5px;color:var(--ink-2)}
+.f input,.f select{width:100%;font-family:var(--f-mono);font-size:12.5px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);text-align:right}
+.f select{text-align:left}
+.f input:focus,.f select:focus,.btn:focus-visible,.tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.f.chk{grid-template-columns:auto 1fr}
+.f.chk input{width:16px;height:16px;accent-color:var(--accent)}
+.src{font-size:11.5px;color:var(--ink-3);line-height:1.4}
+.bareme{width:100%;border-collapse:collapse;font-size:12px}
+.bareme td{padding:3px 2px}
+.bareme input{width:100%;font-family:var(--f-mono);font-size:12px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);text-align:right}
+/* Onglets */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;color:var(--ink-2);font-weight:500;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--ink)}
+section.panel{padding-top:20px;display:grid;gap:20px}
+h3{font-family:var(--f-display);font-size:21px;font-weight:600;margin:0;text-wrap:balance}
+h4{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:460px){.kpis{grid-template-columns:minmax(0,1fr)}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:4px;align-content:start}
+.kpi .lbl{font-size:12px;color:var(--ink-3)}
+.kpi .val{font-family:var(--f-mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.kpi.hl{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:1560px){.grid2.tables{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1100px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.tbl-wrap{overflow-x:auto;min-width:0}
+table.t{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+table.t th{text-align:right;font-weight:600;font-size:11.5px;letter-spacing:.03em;color:var(--ink-3);padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;text-transform:uppercase}
+table.t td{text-align:right;padding:6px 10px;border-bottom:1px solid var(--surface-2);white-space:nowrap;font-family:var(--f-mono);font-size:12.5px}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t td.txt{font-family:var(--f-body);font-size:13px;white-space:normal;min-width:150px}
+table.t tr.tot td{font-weight:600;border-top:1px solid var(--line);background:var(--surface-2)}
+table.t tr.sep td{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+table.t tbody tr:hover td{background:var(--surface-2)}
+table.t tr.best td{background:var(--good-soft)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--f-body);font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px}
+.pill.ok{background:var(--good-soft);color:var(--good)} .pill.ko{background:var(--bad-soft);color:var(--bad)} .pill.mid{background:var(--warn-soft);color:var(--warn)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-bottom:6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:3px;border-radius:2px;display:inline-block}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:7px 9px;border-radius:4px;white-space:nowrap;font-variant-numeric:tabular-nums;transform:translate(-50%,-110%);opacity:0;transition:opacity .1s}
+.tip b{font-weight:600}
+/* Détail des calculs */
+.step{display:grid;grid-template-columns:42px minmax(0,1fr);gap:4px 14px;padding:16px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:none}
+.step .n{font-family:var(--f-display);font-size:24px;color:var(--accent-ink);line-height:1}
+.step h5{margin:0 0 4px;font-size:15px;font-weight:600}
+.step p{margin:0 0 6px;color:var(--ink-2);max-width:78ch}
+.formula{font-family:var(--f-mono);font-size:12.5px;background:var(--surface-2);border-radius:4px;padding:8px 10px;overflow-x:auto;white-space:pre;color:var(--ink)}
+.res{display:inline-block;margin-top:6px;font-family:var(--f-mono);font-weight:500;background:var(--accent-soft);color:var(--accent-ink);padding:3px 8px;border-radius:4px}
+.ref{font-size:12px;color:var(--ink-3);margin-top:4px}
+.ref a,.src a{color:var(--accent-ink)}
+.pmgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+@media (max-width:1100px){.pmgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:460px){.pmgrid{grid-template-columns:minmax(0,1fr)}}
+.pmgrid .lbl{font-size:12px;color:var(--ink-3)} .pmgrid .big{font-family:var(--f-mono);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums} .pmgrid .sub{font-size:12px;color:var(--ink-2)}
+table.t.compact td,table.t.compact th{padding-inline:7px}
+table.t tr.pm td{background:var(--good-soft);color:var(--good);font-weight:600}
+.reco{font-size:15px;line-height:1.6;max-width:80ch}
+.reco p{margin:0 0 10px}
+ul.plain{margin:0;padding-left:18px;color:var(--ink-2)} ul.plain li{margin:3px 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{background:var(--surface);border:none;padding:5px 12px;font-size:12.5px;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.muted{color:var(--ink-3);font-size:12.5px}
+.scroll-y{max-height:560px;overflow:auto}
+.scroll-y thead th{position:sticky;top:0;background:var(--surface)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<header class="top">
+  <div>
+    <div class="eyebrow">Master 2 GP · Cas BURATO · Date de référence 31/12/2026</div>
+    <h1>Rachat de prêt <em>M. et Mme BURATO</em></h1>
+    <p class="lede">Même durée restante, mensualité plus basse : le simulateur chiffre la situation actuelle, l'offre de la future banque, l'économie nette et les alternatives. Toutes les valeurs sont recalculées à partir du panneau d'hypothèses.</p>
+  </div>
+  <div class="hdr-actions"><div id="verdict" class="verdict good"><span class="dot"></span><span id="verdictTxt">…</span></div><div class="exp"><button type="button" class="btn-primary" id="btnPdf">Exporter le rapport client (PDF)</button><span id="pdfStatus" class="muted" role="status"></span></div></div>
+</header>
+
+<div class="layout">
+<aside class="params" aria-label="Hypothèses">
+  <div class="ph"><h2>Hypothèses</h2><button class="btn" id="reset" type="button">Valeurs du cas</button></div>
+
+  <details class="grp" open><summary>Prêt actuel</summary><div class="fields">
+    <div class="f"><label for="P0">Capital initial (€)</label><input id="P0" type="number" step="1000"></div>
+    <div class="f"><label for="t0">Taux nominal (%)</label><input id="t0" type="number" step="0.01"></div>
+    <div class="f"><label for="n0">Durée initiale (mois)</label><input id="n0" type="number" step="1"></div>
+    <div class="f"><label for="d0">1re échéance</label><input id="d0" type="month"></div>
+    <div class="f"><label for="insM0">Assurance M. (% cap. initial)</label><input id="insM0" type="number" step="0.01"></div>
+    <div class="f"><label for="insF0">Assurance Mme (% cap. initial)</label><input id="insF0" type="number" step="0.01"></div>
+    <div class="f"><label for="q0">Quotité par tête (%)</label><input id="q0" type="number" step="5"></div>
+    <div class="f"><label for="iraPct">IRA plafond (% CRD)</label><input id="iraPct" type="number" step="0.1"></div>
+    <div class="f"><label for="iraMois">IRA plafond (mois d'intérêts)</label><input id="iraMois" type="number" step="1"></div>
+  </div></details>
+
+  <details class="grp" open><summary>Rachat</summary><div class="fields">
+    <div class="f"><label for="dRef">Dernière échéance payée</label><input id="dRef" type="month"></div>
+    <div class="f"><label for="nNew">Durée nouveau prêt (mois)</label><input id="nNew" type="number" step="1"></div>
+    <div class="f chk"><input id="keepDur" type="checkbox"><label for="keepDur">Caler la durée sur la durée restante</label></div>
+    <div>
+      <div class="src" style="margin-bottom:4px">Barème future banque (mois min · mois max · taux %)</div>
+      <table class="bareme" id="bareme"></table>
+    </div>
+    <div class="f"><label for="fraisDos">Frais de dossier (€)</label><input id="fraisDos" type="number" step="50"></div>
+    <div class="f"><label for="insM1">Assurance M. (% cap. initial)</label><input id="insM1" type="number" step="0.01"></div>
+    <div class="f"><label for="insF1">Assurance Mme (% cap. initial)</label><input id="insF1" type="number" step="0.01"></div>
+    <div class="f"><label for="q1">Quotité par tête (%)</label><input id="q1" type="number" step="5"></div>
+    <div class="f chk"><input id="finIra" type="checkbox"><label for="finIra">Financer les IRA dans le prêt</label></div>
+    <div class="f chk"><input id="finFrais" type="checkbox"><label for="finFrais">Financer frais de dossier et garantie</label></div>
+  </div></details>
+
+  <details class="grp"><summary>Garantie Crédit Logement</summary><div class="fields">
+    <div class="f"><label for="fmgPct">FMG (% du prêt)</label><input id="fmgPct" type="number" step="0.01"></div>
+    <div class="f"><label for="fmgFix">FMG part fixe (€)</label><input id="fmgFix" type="number" step="10"></div>
+    <div class="f"><label for="comm">Commission de caution (€)</label><input id="comm" type="number" step="10"></div>
+    <div class="f"><label for="rest">Taux de restitution FMG (%)</label><input id="rest" type="number" step="0.01"></div>
+    <div class="f"><label for="formule">Formule</label><select id="formule"><option value="classic">Classic</option><option value="initio">Initio (18–36 ans)</option></select></div>
+    <p class="src">Barème reconstitué à partir du <a href="https://www.creditlogement.fr/particuliers/simulateur-frais-de-garantie/" target="_blank" rel="noopener">simulateur officiel</a> (résidence principale, rachat de prêt, prêt classique, DPE non communiqué), relevés du 30/09/2026 : 100 k€ → 1 120 € FMG ; 300 k€ → 2 900 € ; 440 k€ → 4 146 € ; 1 M€ → 9 130 €, soit FMG = 0,89 % × montant + 230 €. Commission 850 € constatée pour tout montant ≥ 350 k€. Restitution indicative ≈ 71,07 % du FMG, variable chaque trimestre.</p>
+  </div></details>
+
+  <details class="grp"><summary>Contexte et analyse</summary><div class="fields">
+    <div class="f"><label for="rev">Revenus annuels (€)</label><input id="rev" type="number" step="1000"></div>
+    <div class="f"><label for="actu">Taux d'actualisation (%/an)</label><input id="actu" type="number" step="0.25"></div>
+    <div class="f"><label for="u1">Usure &lt; 10 ans (%)</label><input id="u1" type="number" step="0.01"></div>
+    <div class="f"><label for="u2">Usure 10 à &lt; 20 ans (%)</label><input id="u2" type="number" step="0.01"></div>
+    <div class="f"><label for="u3">Usure ≥ 20 ans (%)</label><input id="u3" type="number" step="0.01"></div>
+    <p class="src">Seuils de l'usure applicables au 01/10/2026, <a href="https://www.banque-france.fr/fr/statistiques/taux-et-cours/taux-dusure-2026-q4" target="_blank" rel="noopener">Banque de France</a>. Le seuil retenu est celui du trimestre d'émission de l'offre.</p>
+  </div></details>
+
+  <details class="grp"><summary>Rapport client</summary><div class="fields">
+    <div class="f"><label for="cabinet">Cabinet</label><input id="cabinet" type="text" style="text-align:left;font-family:var(--f-body)" placeholder="facultatif"></div>
+    <div class="f"><label for="conseiller">Conseiller</label><input id="conseiller" type="text" style="text-align:left;font-family:var(--f-body)" placeholder="facultatif"></div>
+    <p class="src">Affichés en en-tête du PDF s'ils sont renseignés.</p>
+  </div></details>
+
+  <details class="grp"><summary>Alternatives</summary><div class="fields">
+    <div class="f"><label for="renegT">Renégociation : taux (%)</label><input id="renegT" type="number" step="0.05"></div>
+    <div class="f"><label for="renegF">Renégociation : frais d'avenant (€)</label><input id="renegF" type="number" step="50"></div>
+    <p class="src">Hypothèses non fournies par l'énoncé, à saisir : par défaut, alignement de la banque actuelle sur le taux concurrent, sans frais.</p>
+  </div></details>
+</aside>
+
+<main style="min-width:0">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="synthese" id="tab-synthese">Synthèse</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="detail" id="tab-detail">Détail des calculs</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="tableaux" id="tab-tableaux">Tableaux d'amortissement</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="alternatives" id="tab-alternatives">Alternatives</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="sources" id="tab-sources">Sources et limites</button>
+  </div>
+
+  <!-- SYNTHESE -->
+  <section class="panel" id="p-synthese">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2 tables">
+      <div class="card">
+        <h4>Situation actuelle vs proposition</h4>
+        <div class="tbl-wrap"><table class="t" id="cmpTbl"></table></div>
+      </div>
+      <div class="card">
+        <h4>Coût restant à supporter (à partir du 01/01/2027)</h4>
+        <div class="tbl-wrap"><table class="t" id="costTbl"></table></div>
+      </div>
+    </div>
+    <div class="card"><h4>Point mort du rachat</h4><div id="pmCard"></div></div>
+    <div class="grid2">
+      <div class="card">
+        <h4>Capital restant dû</h4>
+        <div class="legend"><span><i class="sw" style="background:var(--old)"></i>Prêt actuel</span><span><i class="sw" style="background:var(--new)"></i>Nouveau prêt</span></div>
+        <div class="chart" id="chCrd"></div>
+      </div>
+      <div class="card">
+        <h4>Point mort : position nette si sortie au mois t</h4>
+        <div class="legend"><span><i class="sw" style="background:var(--new)"></i>Position nette</span><span><i class="sw" style="background:var(--ink-3)"></i>Économie cumulée sur mensualités (pointillés)</span></div>
+        <div class="chart" id="chCum"></div>
+        <p class="muted" id="cumNote" style="margin:8px 0 0"></p>
+      </div>
+    </div>
+    <div class="card">
+      <h4>Recommandation</h4>
+      <div class="reco" id="reco"></div>
+    </div>
+  </section>
+
+  <!-- DETAIL -->
+  <section class="panel" id="p-detail" hidden>
+    <div class="card"><h3>Raisonnement pas à pas</h3><p class="muted" style="margin:4px 0 0">Chaque étape affiche la formule, les valeurs injectées et le résultat. Les échéances sont arrondies au centime, les intérêts mensuels aussi ; la dernière échéance solde le capital.</p><div id="steps"></div></div>
+  </section>
+
+  <!-- TABLEAUX -->
+  <section class="panel" id="p-tableaux" hidden>
+    <div class="card">
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Prêt"><button type="button" data-loan="old" aria-pressed="true">Prêt actuel</button><button type="button" data-loan="new" aria-pressed="false">Nouveau prêt</button><button type="button" data-loan="cmp" aria-pressed="false">Comparatif</button></div>
+        <div class="toolbar" style="margin:0">
+          <div class="seg" role="group" aria-label="Pas"><button type="button" data-step="m" aria-pressed="false">Mensuel</button><button type="button" data-step="y" aria-pressed="true">Annuel</button></div>
+          <div class="seg" role="group" aria-label="Affichage"><button type="button" data-view="t" aria-pressed="true">Tableau</button><button type="button" data-view="g" aria-pressed="false">Graphique</button></div>
+        </div>
+      </div>
+      <div id="pmCard2" class="card" style="margin-bottom:12px;background:var(--surface-2)" hidden></div>
+      <p class="muted" id="tblNote" style="margin:0 0 10px"></p>
+      <div id="amChartBox" hidden>
+        <div class="legend" id="amLegend"></div>
+        <div class="chart" id="amChart"></div>
+      </div>
+      <div class="tbl-wrap scroll-y" id="amTblBox"><table class="t" id="amTbl"></table></div>
+    </div>
+  </section>
+
+  <!-- ALTERNATIVES -->
+  <section class="panel" id="p-alternatives" hidden>
+    <div class="card">
+      <h3>Scénarios comparés</h3>
+      <p class="muted" style="margin:4px 0 12px">Gain total = décaissements futurs du statu quo − décaissements futurs du scénario (frais payés comptant inclus, restitution du FMG déduite). VAN au taux d'actualisation du panneau.</p>
+      <div class="tbl-wrap"><table class="t" id="altTbl"></table></div>
+    </div>
+    <div class="card">
+      <h3>Sensibilité à la durée du nouveau prêt</h3>
+      <p class="muted" style="margin:4px 0 12px">Mêmes hypothèses, tout financé. Le taux suit la tranche du barème.</p>
+      <div class="tbl-wrap"><table class="t" id="sensTbl"></table></div>
+    </div>
+  </section>
+
+  <!-- SOURCES -->
+  <section class="panel" id="p-sources" hidden>
+    <div class="card reco" id="sources"></div>
+  </section>
+</main>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script>
+"use strict";
+const DEF={P0:535000,t0:4,n0:300,d0:"2019-10",insM0:0.18,insF0:0.18,q0:100,iraPct:3,iraMois:6,
+  dRef:"2026-12",nNew:213,keepDur:true,fraisDos:1000,insM1:0.15,insF1:0.12,q1:100,finIra:true,finFrais:true,
+  cabinet:"",conseiller:"",fmgPct:0.89,fmgFix:230,comm:850,rest:71.07,formule:"classic",rev:200000,actu:0,u1:4.09,u2:4.68,u3:5.40,renegT:2.75,renegF:0,
+  bareme:[[60,120,2.00],[121,180,2.35],[181,240,2.75],[241,300,3.00]]};
+let S=JSON.parse(JSON.stringify(DEF));
+
+/* ---------- utilitaires ---------- */
+const $=id=>document.getElementById(id);
+const r2=x=>Math.round((x+Number.EPSILON)*100)/100;
+const fE=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2});
+const fE0=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const fN=(x,d=2)=>new Intl.NumberFormat("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d}).format(x);
+const eur=x=>fE.format(x), eur0=x=>fE0.format(x), pct=(x,d=2)=>fN(x,d)+" %";
+const sgn=x=>(x>=0?"+":"−")+eur(Math.abs(x)).replace("-","");
+const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+const ym=s=>{const[y,m]=s.split("-").map(Number);return y*12+(m-1)};
+const lab=i=>MOIS[i%12]+" "+Math.floor(i/12);
+const labS=i=>String(i%12+1).padStart(2,"0")+"/"+Math.floor(i/12);
+const pmt=(P,r,n)=>r===0?P/n:P*r/(1-Math.pow(1+r,-n));
+
+function amort(P,tAnnual,n,startIdx,insM){
+  const r=tAnnual/100/12, m=r2(pmt(P,r,n)); const rows=[]; let c=P;
+  for(let k=1;k<=n;k++){const i=r2(c*r); let cap=r2(m-i); if(k===n||cap>c) cap=c; c=r2(c-cap);
+    rows.push({k,idx:startIdx+k-1,pay:r2(cap+i),int:i,cap,ins:insM,crd:c});}
+  return {m,rows,P,t:tAnnual,n};
+}
+function rateFor(n){for(const [a,b,t] of S.bareme){if(n>=a&&n<=b)return t;} return null}
+function usureFor(n){return n<120?S.u1:(n<240?S.u2:S.u3)}
+function usureLbl(n){return n<120?"< 10 ans":(n<240?"10 à < 20 ans":"≥ 20 ans")}
+function fmg(L){return Math.round(L*S.fmgPct/100+S.fmgFix)}
+function irrMonthly(flows){ // flows[0..n]
+  const npv=r=>flows.reduce((a,f,t)=>a+f/Math.pow(1+r,t),0);
+  let lo=-0.0099,hi=0.05; for(let i=0;i<200;i++){const mid=(lo+hi)/2; if(npv(mid)<0) lo=mid; else hi=mid;} return (lo+hi)/2;
+}
+
+/* ---------- moteur ---------- */
+function computeRefi(o){ // o: {n, finIra, finFrais, rateOverride}
+  const b=base();
+  const n=o.n, t=o.rateOverride??rateFor(n);
+  if(t==null) return {err:"Durée hors barème ("+n+" mois)"};
+  const G=L=>fmg(L)+S.comm; // garantie payée au déblocage (Classic) ; en Initio la commission est reportée
+  const fixedFin=b.crd+(o.finIra?b.ira:0)+(o.finFrais?S.fraisDos:0);
+  let L=fixedFin, it=[];
+  if(o.finFrais){ for(let i=0;i<50;i++){const g=(S.formule==="classic"?G(L):fmg(L)); const nL=r2(fixedFin+g); it.push([L,g,nL]); if(nL===L)break; L=nL;} }
+  else L=r2(fixedFin);
+  const F=fmg(L), commDebl=S.formule==="classic"?S.comm:0, garDebl=F+commDebl;
+  const restit=Math.round(F*S.rest/100), restNet=restit-(S.formule==="initio"?S.comm:0);
+  const cash=(o.finIra?0:b.ira)+(o.finFrais?0:S.fraisDos+garDebl);
+  const insM=r2(L*(S.insM1*S.q1/100+S.insF1*S.q1/100)/100/12);
+  const am=amort(L,t,n,b.refIdx+1,insM);
+  const sumPay=am.rows.reduce((a,r)=>a+r.pay,0), sumInt=am.rows.reduce((a,r)=>a+r.int,0), sumIns=insM*n;
+  // TAEG : fonds nets mis à disposition = L − frais de dossier − garantie au déblocage ; échéances assurance comprise
+  const flows=[L-S.fraisDos-garDebl, ...am.rows.map(r=>-(r.pay+r.ins))];
+  const taeg=(Math.pow(1+irrMonthly(flows),12)-1)*100;
+  const outflow=cash+sumPay+sumIns-restNet;
+  return {n,t,L,F,commDebl,garDebl,restit,restNet,cash,insM,am,sumPay,sumInt,sumIns,taeg,outflow,it,fixedFin,
+    mTot:r2(am.m+insM)};
+}
+function base(){
+  const startIdx=ym(S.d0), refIdx=ym(S.dRef);
+  const ins0=r2(S.P0*(S.insM0*S.q0/100+S.insF0*S.q0/100)/100/12);
+  const am=amort(S.P0,S.t0,S.n0,startIdx,ins0);
+  const paid=Math.max(0,Math.min(S.n0,refIdx-startIdx+1));
+  const crd=paid===0?S.P0:am.rows[paid-1].crd;
+  const rem=am.rows.slice(paid);
+  const iraA=r2(crd*S.iraPct/100), iraB=r2(crd*S.t0/100*S.iraMois/12), ira=Math.min(iraA,iraB);
+  const remPay=rem.reduce((a,r)=>a+r.pay,0), remInt=rem.reduce((a,r)=>a+r.int,0), remIns=ins0*rem.length;
+  const paidInt=am.rows.slice(0,paid).reduce((a,r)=>a+r.int,0);
+  const totInt=am.rows.reduce((a,r)=>a+r.int,0);
+  return {startIdx,refIdx,ins0,am,paid,crd,rem,nRem:rem.length,iraA,iraB,ira,remPay,remInt,remIns,paidInt,totInt,
+    mTot:r2(am.m+ins0),outflow:remPay+remIns};
+}
+function savingsFlows(b,sc){ // flux d'économie : t0 = -cash ; t = échéance statu quo − échéance scénario ; + restitution
+  const N=Math.max(b.nRem,sc.rows.length); const f=[-sc.cash];
+  for(let t=1;t<=N;t++){const o=b.rem[t-1], s=sc.rows[t-1]; f.push((o?o.pay+o.ins:0)-(s?s.pay+s.ins:0)+(t===sc.rows.length?sc.restNet:0));}
+  return f;
+}
+/* Point mort : position nette si l'emprunteur soldait son crédit au mois t
+   = − trésorerie initiale + Σ (échéance actuelle − échéance rachat) − (CRD rachat_t − CRD actuel_t) */
+function breakEven(b,rows,L0,cash){
+  const N=Math.max(b.rem.length,rows.length); let cum=cash?-cash:0;
+  const a=[{t:0,idx:b.refIdx,s:0,o:0,n:0,cum,co:b.crd,cn:L0,d:L0-b.crd,pos:cum-(L0-b.crd)}];
+  for(let t=1;t<=N;t++){const o=b.rem[t-1],n=rows[t-1]; const po=o?o.pay+o.ins:0, pn=n?n.pay+n.ins:0; const s=po-pn; cum+=s;
+    const co=o?o.crd:0, cn=n?n.crd:0; a.push({t,idx:b.refIdx+t,s,o:po,n:pn,cum,co,cn,d:cn-co,pos:cum-(cn-co)});}
+  let pm=null; for(const r of a){if(r.pos>=-0.005){pm=r.t;break;}}
+  return {a,pm};
+}
+function npv(f,annual){const r=Math.pow(1+annual/100,1/12)-1;return f.reduce((a,x,t)=>a+x/Math.pow(1+r,t),0)}
+
+/* ---------- scénarios ---------- */
+function scenarios(b){
+  const list=[];
+  const mk=(id,name,desc,o)=>{const R=computeRefi(o); if(R.err) return; const rows=R.am.rows;
+    const sc={rows,cash:R.cash,restNet:R.restNet}; const f=savingsFlows(b,sc);
+    list.push({id,name,desc,n:R.n,t:R.t,mTot:R.mTot,gainM:r2(b.mTot-R.mTot),cash:R.cash,gainT:b.outflow-R.outflow,van:npv(f,S.actu),
+      obj:(R.n===b.nRem&&R.mTot<b.mTot),R,pm:breakEven(b,rows,R.L,R.cash).pm});};
+  list.push({id:"sq",name:"Statu quo",desc:"Prêt actuel conservé",n:b.nRem,t:S.t0,mTot:b.mTot,gainM:0,cash:0,gainT:0,van:0,obj:false});
+  mk("A","Rachat, tout financé","IRA, frais et garantie intégrés au nouveau prêt",{n:S.nNew,finIra:true,finFrais:true});
+  mk("B","Rachat, frais payés comptant","Nouveau prêt = CRD ; IRA, frais et garantie sur l'épargne",{n:S.nNew,finIra:false,finFrais:false});
+  // C : durée réduite tant que la mensualité ne dépasse pas l'actuelle
+  let nC=null; for(let n=S.bareme[0][0];n<=S.bareme[S.bareme.length-1][1];n++){const R=computeRefi({n,finIra:true,finFrais:true}); if(!R.err&&R.mTot<=b.mTot){nC=n;break;}}
+  if(nC) mk("C","Rachat, durée réduite","Durée la plus courte gardant une mensualité ≤ actuelle ("+nC+" mois)",{n:nC,finIra:true,finFrais:true});
+  const nMax=S.bareme[S.bareme.length-1][1];
+  mk("D","Rachat, durée maximale","Allongement à "+nMax+" mois, tout financé",{n:nMax,finIra:true,finFrais:true});
+  // E : délégation d'assurance seule
+  {const insD=r2(S.P0*(S.insM1*S.q1/100+S.insF1*S.q1/100)/100/12); const rows=b.rem.map(r=>({...r,ins:insD}));
+   const sc={rows,cash:0,restNet:0}; const f=savingsFlows(b,sc); const mT=r2(b.am.m+insD);
+   list.push({id:"E",name:"Délégation d'assurance seule",desc:"Prêt conservé, assurance substituée (taux M. "+fN(S.insM1)+" % / Mme "+fN(S.insF1)+" % sur capital initial)",n:b.nRem,t:S.t0,mTot:mT,gainM:r2(b.mTot-mT),cash:0,gainT:(b.ins0-insD)*b.nRem,van:npv(f,S.actu),obj:mT<b.mTot,pm:breakEven(b,rows,b.crd,0).pm});}
+  // F : renégociation interne
+  {const am=amort(b.crd,S.renegT,b.nRem,b.refIdx+1,b.ins0); const rows=am.rows; const sc={rows,cash:S.renegF,restNet:0};
+   const f=savingsFlows(b,sc); const out=S.renegF+rows.reduce((a,r)=>a+r.pay+r.ins,0); const mT=r2(am.m+b.ins0);
+   list.push({id:"F",name:"Renégociation interne",desc:"Banque actuelle à "+fN(S.renegT)+" %, sans IRA ni garantie, frais d'avenant "+eur0(S.renegF),n:b.nRem,t:S.renegT,mTot:mT,gainM:r2(b.mTot-mT),cash:S.renegF,gainT:b.outflow-out,van:npv(f,S.actu),obj:mT<b.mTot,pm:breakEven(b,rows,b.crd,S.renegF).pm});}
+  // G : renégociation + délégation
+  {const insD=r2(S.P0*(S.insM1*S.q1/100+S.insF1*S.q1/100)/100/12); const am=amort(b.crd,S.renegT,b.nRem,b.refIdx+1,insD);
+   const rows=am.rows; const sc={rows,cash:S.renegF,restNet:0}; const f=savingsFlows(b,sc); const out=S.renegF+rows.reduce((a,r)=>a+r.pay+r.ins,0); const mT=r2(am.m+insD);
+   list.push({id:"G",name:"Renégociation + délégation",desc:"Combinaison des deux leviers sans changer de banque",n:b.nRem,t:S.renegT,mTot:mT,gainM:r2(b.mTot-mT),cash:S.renegF,gainT:b.outflow-out,van:npv(f,S.actu),obj:mT<b.mTot,pm:breakEven(b,rows,b.crd,S.renegF).pm});}
+  return list;
+}
+
+/* ---------- rendu ---------- */
+function kpi(lbl,val,sub,cls=""){return `<div class="kpi ${cls}"><div class="lbl">${lbl}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`}
+
+function render(){
+  if(S.keepDur){const b0=base(); S.nNew=b0.nRem; $("nNew").value=S.nNew;}
+  const b=base(); const R=computeRefi({n:S.nNew,finIra:S.finIra,finFrais:S.finFrais});
+  if(R.err){$("verdictTxt").textContent=R.err;$("verdict").className="verdict bad";return;}
+  const gainM=r2(b.mTot-R.mTot), gainT=b.outflow-R.outflow;
+  const f=savingsFlows(b,{rows:R.am.rows,cash:R.cash,restNet:R.restNet}); const van=npv(f,S.actu);
+  let cum=0, pm=null; const cumArr=f.map((x,t)=>{cum+=x; if(pm===null&&t>0&&cum>=0&&f[0]<0) pm=t; return cum;});
+  const effOld=b.mTot/(S.rev/12)*100, effNew=R.mTot/(S.rev/12)*100;
+  const usure=usureFor(R.n);
+  // Verdict
+  const v=$("verdict"); const okObj=R.n===b.nRem&&gainM>0;
+  if(gainT>0&&gainM>0){v.className="verdict good";$("verdictTxt").textContent="Rachat pertinent : "+sgn(gainM)+" / mois, "+eur0(gainT)+" économisés";}
+  else if(gainM>0){v.className="verdict warn";$("verdictTxt").textContent="Mensualité en baisse mais coût total en hausse ("+eur0(gainT)+")";}
+  else {v.className="verdict bad";$("verdictTxt").textContent="Rachat non pertinent avec ces hypothèses";}
+
+  // KPIs
+  $("kpis").innerHTML=
+    kpi("Mensualité actuelle (ass. incl.)",eur(b.mTot),eur(b.am.m)+" + "+eur(b.ins0)+" d'assurance")+
+    kpi("Nouvelle mensualité (ass. incl.)",eur(R.mTot),eur(R.am.m)+" + "+eur(R.insM)+" · "+pct(R.t)+" sur "+R.n+" mois")+
+    kpi("Gain mensuel",`<span class="${gainM>=0?'pos':'neg'}">${sgn(gainM)}</span>`,"soit "+sgn(gainM*12)+" par an","hl")+
+    kpi("Gain total net",`<span class="${gainT>=0?'pos':'neg'}">${sgn(gainT)}</span>`,(S.actu>0?"VAN à "+pct(S.actu)+" : "+sgn(van):"en euros courants, restitution FMG incluse"),"hl");
+
+  // Comparatif
+  $("cmpTbl").innerHTML=`<thead><tr><th></th><th>Actuel</th><th>Rachat</th><th>Écart</th></tr></thead><tbody>
+   <tr><td class="txt">Capital emprunté au 01/2027</td><td>${eur(b.crd)}</td><td>${eur(R.L)}</td><td>${sgn(R.L-b.crd)}</td></tr>
+   <tr><td class="txt">Taux nominal</td><td>${pct(S.t0)}</td><td>${pct(R.t)}</td><td>${fN(R.t-S.t0)} pt</td></tr>
+   <tr><td class="txt">Durée restante</td><td>${b.nRem} mois</td><td>${R.n} mois</td><td>${R.n-b.nRem} mois</td></tr>
+   <tr><td class="txt">Échéance hors assurance</td><td>${eur(b.am.m)}</td><td>${eur(R.am.m)}</td><td>${sgn(R.am.m-b.am.m)}</td></tr>
+   <tr><td class="txt">Assurance mensuelle</td><td>${eur(b.ins0)}</td><td>${eur(R.insM)}</td><td>${sgn(R.insM-b.ins0)}</td></tr>
+   <tr class="tot"><td class="txt">Mensualité totale</td><td>${eur(b.mTot)}</td><td>${eur(R.mTot)}</td><td>${sgn(R.mTot-b.mTot)}</td></tr>
+   <tr><td class="txt">Taux d'effort (revenus ${eur0(S.rev)})</td><td>${pct(effOld,1)}</td><td>${pct(effNew,1)}</td><td>${fN(effNew-effOld,1)} pt</td></tr>
+   <tr><td class="txt">TAEG du nouveau prêt / seuil d'usure ${usureLbl(R.n)}</td><td>–</td><td>${pct(R.taeg)}</td><td>${R.taeg<=usure?'<span class="pill ok">≤ '+pct(usure)+'</span>':'<span class="pill ko">> '+pct(usure)+'</span>'}</td></tr>
+   <tr><td class="txt">Trésorerie mobilisée au 31/12/2026</td><td>–</td><td>${eur(R.cash)}</td><td></td></tr>
+  </tbody>`;
+  const opCost=b.ira+S.fraisDos+R.garDebl-R.restNet;
+  $("costTbl").innerHTML=`<thead><tr><th></th><th>Actuel</th><th>Rachat</th><th>Écart</th></tr></thead><tbody>
+   <tr><td class="txt">Intérêts restants</td><td>${eur(b.remInt)}</td><td>${eur(R.sumInt)}</td><td>${sgn(R.sumInt-b.remInt)}</td></tr>
+   <tr><td class="txt">Assurance restante</td><td>${eur(b.remIns)}</td><td>${eur(R.sumIns)}</td><td>${sgn(R.sumIns-b.remIns)}</td></tr>
+   <tr><td class="txt">IRA</td><td>–</td><td>${eur(b.ira)}</td><td>${sgn(b.ira)}</td></tr>
+   <tr><td class="txt">Frais de dossier</td><td>–</td><td>${eur(S.fraisDos)}</td><td>${sgn(S.fraisDos)}</td></tr>
+   <tr><td class="txt">Garantie payée au déblocage</td><td>–</td><td>${eur(R.garDebl)}</td><td>${sgn(R.garDebl)}</td></tr>
+   <tr><td class="txt">Restitution FMG en fin de prêt${S.formule==="initio"?" (nette de commission)":""}</td><td>–</td><td>−${eur(R.restNet)}</td><td>${sgn(-R.restNet)}</td></tr>
+   <tr class="tot"><td class="txt">Coût restant du crédit</td><td>${eur(b.remInt+b.remIns)}</td><td>${eur(R.sumInt+R.sumIns+opCost)}</td><td>${sgn(R.sumInt+R.sumIns+opCost-b.remInt-b.remIns)}</td></tr>
+   <tr><td class="txt">Coût total sur la vie de l'opération (depuis 2019)</td><td>${eur(b.totInt+b.ins0*S.n0)}</td><td>${eur(b.paidInt+b.ins0*b.paid+R.sumInt+R.sumIns+opCost)}</td><td>${sgn(R.sumInt+R.sumIns+opCost-b.remInt-b.remIns)}</td></tr>
+  </tbody>`;
+
+  // Graphiques
+  const crdOld=[{x:b.refIdx,y:b.crd},...b.rem.map(r=>({x:r.idx,y:r.crd}))];
+  const crdNew=[{x:b.refIdx,y:R.L},...R.am.rows.map(r=>({x:r.idx,y:r.crd}))];
+  lineChart($("chCrd"),[{name:"Prêt actuel",c:"var(--old)",pts:crdOld},{name:"Nouveau prêt",c:"var(--new)",pts:crdNew}],{area:false});
+  const BE=breakEven(b,R.am.rows,R.L,R.cash); LAST.BE=BE; LAST.b=b; LAST.R=R;
+  pmChart($("chCum"),b,BE);
+  $("cumNote").innerHTML=pmSentence(b,R,BE,gainM);
+  $("pmCard").innerHTML=pmBanner(b,R,BE,gainM);
+
+  renderReco(b,R,gainM,gainT,van,effNew,usure,BE);
+  renderSteps(b,R,gainM,gainT,van,f,usure,BE);
+  renderTable(b,R,BE);
+  renderAlt(b);
+  renderSources();
+}
+
+let LAST={};
+function pmText(b,BE){return BE.pm===null?"non atteint":(BE.pm===0?"dès la signature":`mois ${BE.pm} (${lab(b.refIdx+BE.pm)})`)}
+function pmBanner(b,R,BE,gainM){
+  const op=b.ira+S.fraisDos+R.garDebl, simple=gainM>0?op/gainM:null, a0=BE.a[0];
+  const pmR=BE.pm!==null?BE.a[BE.pm]:null;
+  return `<div class="pmgrid">
+   <div><div class="lbl">Point mort</div><div class="big ${BE.pm!==null?'pos':'neg'}">${BE.pm===null?"Non atteint":BE.pm===0?"Immédiat":BE.pm+" mois"}</div><div class="sub">${BE.pm?lab(b.refIdx+BE.pm)+" · "+fN(BE.pm/12,1)+" ans":""}</div></div>
+   <div><div class="lbl">Position nette au départ</div><div class="big neg">${eur0(a0.pos)}</div><div class="sub">trésorerie ${eur0(R.cash)} + surplus de CRD ${eur0(a0.d)}</div></div>
+   <div><div class="lbl">Position nette au point mort</div><div class="big">${pmR?eur0(pmR.pos):"–"}</div><div class="sub">${pmR?"économie cumulée "+eur0(pmR.cum+R.cash)+" − écart CRD "+eur0(pmR.d):""}</div></div>
+   <div><div class="lbl">Méthode rapide (coûts ÷ gain mensuel)</div><div class="big">${simple?fN(simple,1)+" mois":"–"}</div><div class="sub">${eur0(op)} ÷ ${eur(gainM)}, hors effet des intérêts</div></div>
+  </div>`;
+}
+function pmSentence(b,R,BE,gainM){
+  return `Le point mort est la première échéance à partir de laquelle solder le nouveau prêt (vente du bien, remboursement anticipé) laisse les BURATO plus riches qu'avec le prêt actuel : économie cumulée sur les mensualités − trésorerie engagée − écart de capital restant dû. Il est atteint <b>${pmText(b,BE)}</b>. Avant cette date, le rachat coûte plus qu'il ne rapporte en cas de sortie anticipée.`;
+}
+function pmChart(el,b,BE,big){
+  const pos=BE.a.map(r=>({x:r.idx,y:r.pos})), cum=BE.a.map(r=>({x:r.idx,y:r.cum}));
+  lineChart(el,[{name:"Position nette",c:"var(--new)",pts:pos},{name:"Économie cumulée sur mensualités",c:"var(--ink-3)",pts:cum,dash:true,area:false}],
+    {W:big?900:480,H:big?300:230,area:true,zero:true,marker:BE.pm!==null&&BE.pm>0?{x:b.refIdx+BE.pm,y:BE.a[BE.pm].pos,label:"Point mort · "+labS(b.refIdx+BE.pm)}:null});
+}
+function renderReco(b,R,gainM,gainT,van,effNew,usure,BE){
+  const alts=scenarios(b).filter(a=>a.id!=="sq");
+  const bestT=alts.reduce((a,c)=>c.gainT>a.gainT?c:a);
+  const objAlts=alts.filter(a=>a.obj); const bestObj=objAlts.length?objAlts.reduce((a,c)=>c.gainT>a.gainT?c:a):null;
+  const reneg=alts.find(a=>a.id==="F");
+  const renegBreak=breakEvenRenegRate(b,gainT);
+  $("reco").innerHTML=`
+   <p><b>${gainT>0&&gainM>0?"Le rachat répond à l'objectif":"Le rachat ne répond pas à l'objectif"}</b> : sur ${R.n} mois${R.n===b.nRem?" (durée restante conservée)":""}, la mensualité passe de ${eur(b.mTot)} à ${eur(R.mTot)}, soit ${sgn(gainM)} par mois, et le coût total baisse de ${eur0(gainT)} après IRA (${eur0(b.ira)}), frais de dossier (${eur0(S.fraisDos)}) et garantie nette de restitution (${eur0(R.garDebl-R.restNet)}).</p>
+   <p><b>Point mort : ${pmText(b,BE)}.</b> ${BE.pm&&BE.pm>0?`Jusqu'à cette date, une vente du bien ou un remboursement anticipé ferait perdre de l'argent par rapport au statu quo, car le capital restant dû est gonflé des frais financés (${eur0(BE.a[0].d)} au départ). Le rachat suppose donc que les BURATO conservent leur résidence principale au-delà de ${fN(BE.pm/12,1)} ans.`:""}</p>
+   <p>Deux leviers expliquent le gain : l'écart de taux (${pct(S.t0)} → ${pct(R.t)}) et la délégation d'assurance (${eur(b.ins0)} → ${eur(R.insM)} par mois). La délégation seule, applicable sur le prêt actuel sans rachat, rapporterait déjà ${eur0(alts.find(a=>a.id==="E").gainT)} ; ce levier est donc à présenter séparément au client.</p>
+   <p>${bestObj?`Parmi les scénarios qui conservent la durée et baissent la mensualité, le plus économique est <b>${bestObj.name.toLowerCase()}</b> (${eur0(bestObj.gainT)}).`:""} ${bestT.id!==(bestObj&&bestObj.id)?`Le gain total maximal est obtenu par <b>${bestT.name.toLowerCase()}</b> (${eur0(bestT.gainT)}), mais il ne respecte pas l'objectif de mensualité.`:""}</p>
+   <p>Avant de signer, demander à la banque actuelle une renégociation : elle évite IRA et garantie. Avec délégation d'assurance, une renégociation à ${renegBreak?pct(renegBreak):"–"} sans frais procure le même gain que ce rachat ; au taux saisi (${pct(S.renegT)}), la renégociation seule rapporte ${eur0(reneg.gainT)}.</p>
+   <p class="muted">Points à vérifier : TAEG ${pct(R.taeg)} ≤ seuil d'usure ${pct(usure)} ; taux d'effort ${pct(effNew,1)} ; nature de la garantie du prêt actuel (mainlevée d'hypothèque ou restitution FMG éventuelle) ; clause d'IRA exacte du contrat ; taux de restitution Crédit Logement variable. Cet outil ne constitue pas un conseil en financement.</p>`;
+}
+function breakEvenRenegRate(b,target){ // taux de renégociation (avec délégation, sans frais) donnant le même gain total
+  const insD=r2(S.P0*(S.insM1*S.q1/100+S.insF1*S.q1/100)/100/12);
+  const gain=t=>{const am=amort(b.crd,t,b.nRem,b.refIdx+1,insD);return b.outflow-am.rows.reduce((a,r)=>a+r.pay+r.ins,0)};
+  let lo=0,hi=S.t0; if(gain(hi)>target) return hi; for(let i=0;i<60;i++){const m=(lo+hi)/2; if(gain(m)>target) lo=m; else hi=m;} return (lo+hi)/2;
+}
+
+function step(n,title,text,formula,res,ref){return `<div class="step"><div class="n">${n}</div><div><h5>${title}</h5>${text?`<p>${text}</p>`:""}${formula?`<div class="formula">${formula}</div>`:""}${res?`<span class="res">${res}</span>`:""}${ref?`<div class="ref">${ref}</div>`:""}</div></div>`}
+function renderSteps(b,R,gainM,gainT,van,f,usure,BE){
+  const r0=S.t0/1200, r1=R.t/1200; const q=S.q0/100;
+  const it=R.it.length?R.it.map((x,i)=>`itération ${i+1} : L = ${fN(x[0])} → garantie ${fN(x[1],0)} → L = ${fN(x[2])}`).join("\n"):"";
+  let h="";
+  h+=step(1,"Mensualité du prêt actuel","Échéance constante d'un prêt amortissable, taux mensuel proportionnel = taux annuel / 12.",
+   `m = C × i / (1 − (1 + i)^−n)\n  = ${fN(S.P0,0)} × ${fN(r0,6)} / (1 − (1 + ${fN(r0,6)})^−${S.n0})`,"m = "+eur(b.am.m));
+  h+=step(2,"Assurance actuelle","Taux par tête appliqué au capital initial, quotité "+S.q0+" % chacun : cotisation constante.",
+   `A = C × (taux M. × quotité + taux Mme × quotité) / 12\n  = ${fN(S.P0,0)} × (${fN(S.insM0)} % × ${fN(q*100,0)} % + ${fN(S.insF0)} % × ${fN(q*100,0)} %) / 12`,"A = "+eur(b.ins0)+" · mensualité totale "+eur(b.mTot));
+  h+=step(3,"Échéances payées et durée restante","1re échéance "+lab(b.startIdx)+", dernière échéance payée "+lab(b.refIdx)+" (bornes incluses).",
+   `payées = (${Math.floor(b.refIdx/12)} − ${Math.floor(b.startIdx/12)}) × 12 + (${b.refIdx%12+1} − ${b.startIdx%12+1}) + 1 = ${b.paid}\nrestantes = ${S.n0} − ${b.paid} = ${b.nRem} mois (${fN(b.nRem/12,2)} ans)`,b.nRem+" mois restants");
+  h+=step(4,"Capital restant dû au 31/12/2026","Lecture du tableau d'amortissement après l'échéance n° "+b.paid+". Formule fermée équivalente (hors arrondis mensuels) :",
+   `CRD = C × (1 + i)^k − m × ((1 + i)^k − 1) / i,   k = ${b.paid}`,"CRD = "+eur(b.crd));
+  h+=step(5,"Indemnités de remboursement anticipé","Plafond légal et contractuel : le plus faible de 3 % du CRD et d'un semestre d'intérêts au taux du prêt.",
+   `IRA = min(${fN(S.iraPct,1)} % × CRD ; CRD × ${fN(S.t0)} % × ${S.iraMois}/12)\n    = min(${fN(b.iraA)} ; ${fN(b.iraB)})`,"IRA = "+eur(b.ira)+(b.ira===b.iraB?" (plafond semestre d'intérêts)":" (plafond 3 %)"),
+   `Code de la consommation, art. L313-47 et R313-25.`);
+  h+=step(6,"Taux de la future banque","Durée du nouveau prêt "+R.n+" mois = "+fN(R.n/12,2)+" ans. Tranche du barème : "+(S.bareme.find(x=>R.n>=x[0]&&R.n<=x[1])||[]).slice(0,2).join(" à ")+" mois.",
+   "","Taux nominal = "+pct(R.t),"Hypothèse de lecture : « 16 – 20 ans » couvre 181 à 240 mois ; une durée de 17,75 ans relève de cette tranche.");
+  h+=step(7,"Garantie Crédit Logement","La garantie est calculée sur le montant du prêt, qui l'inclut lorsqu'elle est financée : calcul circulaire résolu par itération jusqu'à stabilité du montant. Formule "+(S.formule==="classic"?"Classic : FMG + commission au déblocage.":"Initio : FMG seul au déblocage, commission déduite de la restitution."),
+   `FMG = ${fN(S.fmgPct)} % × L + ${fN(S.fmgFix,0)} €   ·   commission = ${fN(S.comm,0)} €\n${it}\nFMG = ${fN(R.F,0)} € · payé au déblocage = ${fN(R.garDebl,0)} €\nrestitution ≈ ${fN(S.rest)} % × FMG = ${fN(R.restit,0)} €${S.formule==="initio"?" − commission "+fN(S.comm,0)+" = "+fN(R.restNet,0)+" €":""}`,
+   "Coût net de la garantie ≈ "+eur(R.garDebl-R.restNet),
+   `Barème reconstitué depuis le <a href="https://www.creditlogement.fr/particuliers/simulateur-frais-de-garantie/" target="_blank" rel="noopener">simulateur Crédit Logement</a> (relevés du 30/09/2026) ; restitution non garantie.`);
+  h+=step(8,"Montant du nouveau prêt","",
+   `L = CRD${S.finIra?" + IRA":""}${S.finFrais?" + frais de dossier + garantie":""}\n  = ${fN(b.crd)}${S.finIra?" + "+fN(b.ira):""}${S.finFrais?" + "+fN(S.fraisDos,0)+" + "+fN(R.garDebl,0):""}\nTrésorerie à mobiliser : ${fN(R.cash)} €`,"L = "+eur(R.L));
+  h+=step(9,"Nouvelle mensualité","",
+   `m' = ${fN(R.L,0)} × ${fN(r1,6)} / (1 − (1 + ${fN(r1,6)})^−${R.n})\nA' = ${fN(R.L,0)} × (${fN(S.insM1)} % × ${S.q1} % + ${fN(S.insF1)} % × ${S.q1} %) / 12 = ${fN(R.insM)}`,
+   "m' = "+eur(R.am.m)+" · A' = "+eur(R.insM)+" · total "+eur(R.mTot));
+  h+=step(10,"Gain mensuel","", `ΔM = (${fN(b.am.m)} + ${fN(b.ins0)}) − (${fN(R.am.m)} + ${fN(R.insM)})`,"ΔM = "+sgn(gainM)+" / mois");
+  h+=step(11,"Gain total net","Comparaison des décaissements futurs, à partir du 01/01/2027, en euros courants.",
+   `Statu quo  = Σ échéances restantes + Σ assurance = ${fN(b.remPay)} + ${fN(b.remIns)} = ${fN(b.outflow)}\nRachat     = trésorerie + Σ échéances + Σ assurance − restitution\n           = ${fN(R.cash)} + ${fN(R.sumPay)} + ${fN(R.sumIns)} − ${fN(R.restNet)} = ${fN(R.outflow)}\nGain       = ${fN(b.outflow)} − ${fN(R.outflow)}`,
+   "Gain total = "+sgn(gainT)+(S.actu>0?" · VAN à "+pct(S.actu)+" = "+sgn(van):""));
+  h+=step(12,"TAEG et seuil de l'usure","Taux actuariel annuel égalisant les fonds nets reçus (L − frais de dossier − garantie au déblocage) et les échéances assurance comprise. La restitution du FMG, incertaine, n'est pas intégrée.",
+   `Σ (m' + A') / (1 + τ)^t = L − frais − garantie   ⇒   TAEG = (1 + τ)^12 − 1`,"TAEG = "+pct(R.taeg)+(R.taeg<=usure?" ≤ ":" > ")+"usure "+pct(usure)+" ("+usureLbl(R.n)+")",
+   `Code de la consommation, art. L314-1 à L314-9 et R314-1 et s. ; seuils <a href="https://www.banque-france.fr/fr/statistiques/taux-et-cours/taux-dusure-2026-q4" target="_blank" rel="noopener">Banque de France 2026-T4</a>.`);
+  const a0=BE.a[0], ap=BE.pm!==null?BE.a[BE.pm]:null, ap1=BE.pm>0?BE.a[BE.pm-1]:null, op=b.ira+S.fraisDos+R.garDebl;
+  h+=step(13,"Point mort","Premier mois t où solder le nouveau prêt (vente, remboursement anticipé) laisse l'emprunteur dans une position au moins égale à celle du statu quo. On ajoute l'économie de mensualités cumulée et on retranche l'excès de capital restant dû créé par les frais financés. Hors IRA éventuelles sur le nouveau prêt et hors restitution du FMG.",
+   `Position(t) = − trésorerie + Σ₁ᵗ (échéance actuelle − échéance rachat) − (CRD rachat(t) − CRD actuel(t))\n`+
+   `Position(0) = − ${fN(R.cash)} − (${fN(R.L)} − ${fN(b.crd)}) = ${fN(a0.pos)}\n`+
+   (ap1?`Position(${BE.pm-1}) = ${fN(ap1.cum)} − (${fN(ap1.cn)} − ${fN(ap1.co)}) = ${fN(ap1.pos)}  < 0\n`:"")+
+   (ap?`Position(${BE.pm}) = ${fN(ap.cum)} − (${fN(ap.cn)} − ${fN(ap.co)}) = ${fN(ap.pos)}  ≥ 0\n`:"")+
+   `Méthode rapide : coûts d'opération / gain mensuel = ${fN(op)} / ${fN(gainM)} = ${gainM>0?fN(op/gainM,1):"–"} mois`,
+   "Point mort = "+pmText(b,BE),
+   "La méthode rapide ignore que les frais financés portent intérêt et que l'écart de CRD se réduit à un rythme différent : elle sert d'ordre de grandeur, la position nette fait foi.");
+  $("steps").innerHTML=h;
+}
+
+let TV={loan:"old",step:"y",view:"t"};
+function renderTable(b,R,BE){
+  const t=$("amTbl"), note=$("tblNote");
+  const isG=TV.view==="g"; $("amChartBox").hidden=!isG; $("amTblBox").hidden=isG;
+  $("pmCard2").hidden=TV.loan!=="cmp"; if(TV.loan==="cmp") $("pmCard2").innerHTML=pmBanner(b,R,BE,r2(b.mTot-R.mTot));
+  if(isG){
+    if(TV.loan==="cmp"){ $("amLegend").innerHTML='<span><i class="sw" style="background:var(--new)"></i>Position nette</span><span><i class="sw" style="background:var(--ink-3)"></i>Économie cumulée sur mensualités (pointillés)</span>';
+      note.innerHTML="Position nette = économie cumulée − trésorerie engagée − (CRD rachat − CRD actuel). Le point mort est le premier mois où elle devient positive : <b>"+pmText(b,BE)+"</b>."; pmChart($("amChart"),b,BE,true); }
+    else { const am=TV.loan==="old"?b.am:R.am, c=TV.loan==="old"?"var(--old)":"var(--new)";
+      const P=TV.loan==="old"?S.P0:R.L, st=TV.loan==="old"?b.startIdx-1:b.refIdx;
+      let ci=0; const crd=[{x:st,y:P},...am.rows.map(r=>({x:r.idx,y:r.crd}))], cumI=[{x:st,y:0},...am.rows.map(r=>{ci+=r.int+r.ins;return {x:r.idx,y:ci}})];
+      $("amLegend").innerHTML=`<span><i class="sw" style="background:${c}"></i>Capital restant dû</span><span><i class="sw" style="background:var(--ink-3)"></i>Intérêts + assurance cumulés (pointillés)</span>`;
+      note.textContent=TV.loan==="old"?"Prêt actuel sur toute sa durée ; la ligne verticale marque le rachat.":"Nouveau prêt à partir de janvier 2027.";
+      lineChart($("amChart"),[{name:"CRD",c,pts:crd},{name:"Intérêts + assurance cumulés",c:"var(--ink-3)",pts:cumI,dash:true,area:false}],{W:900,H:300,area:false,marker:TV.loan==="old"?{x:b.refIdx,y:b.crd,label:"Rachat · "+labS(b.refIdx)}:null}); }
+    return;
+  }
+  const agg=(rows)=>{const m=new Map();rows.forEach(r=>{const y=Math.floor(r.idx/12);const a=m.get(y)||{y,pay:0,int:0,cap:0,ins:0,crd:0,nb:0};a.pay+=r.pay;a.int+=r.int;a.cap+=r.cap;a.ins+=r.ins;a.crd=r.crd;a.nb++;m.set(y,a)});return [...m.values()]};
+  if(TV.loan==="cmp"){
+    note.innerHTML="Échéances assurance comprise, à partir de janvier 2027. Position nette = économie cumulée − trésorerie engagée − écart de CRD. Ligne verte : point mort ("+pmText(b,BE)+").";
+    let data=BE.a;
+    if(TV.step==="y"){const m=new Map(); BE.a.forEach(r=>{const y=r.t===0?"Départ":Math.floor(r.idx/12); const a=m.get(y)||{lbl:y,o:0,n:0,s:0,pmIn:false}; a.o+=r.o;a.n+=r.n;a.s+=r.s; Object.assign(a,{cum:r.cum,co:r.co,cn:r.cn,d:r.d,pos:r.pos}); if(r.t===BE.pm)a.pmIn=true; m.set(y,a)}); data=[...m.values()];}
+    const tot={o:0,n:0}; t.classList.add("compact");
+    t.innerHTML=`<thead><tr><th>${TV.step==="y"?"Année":"Échéance"}</th><th>Actuel</th><th>Rachat</th><th>Écart</th><th>Économie cumulée</th><th>CRD actuel</th><th>CRD rachat</th><th>Écart CRD</th><th>Position nette</th></tr></thead><tbody>`+
+      data.map(r=>{tot.o+=r.o;tot.n+=r.n; const isPm=TV.step==="y"?r.pmIn:r.t===BE.pm;
+        const lbl=TV.step==="y"?r.lbl:(r.t===0?"Départ · "+labS(r.idx):r.t+" · "+labS(r.idx));
+        return (isPm&&TV.step==="m"?`<tr class="pm"><td colspan="9">Point mort atteint : ${pmText(b,BE)}</td></tr>`:"")+`<tr class="${isPm?'pm':''}"><td>${lbl}${isPm&&TV.step==="y"?" · point mort":""}</td><td>${fN(r.o)}</td><td>${fN(r.n)}</td><td class="${r.o-r.n>=0?'pos':'neg'}">${fN(r.o-r.n)}</td><td>${fN(r.cum)}</td><td>${fN(r.co)}</td><td>${fN(r.cn)}</td><td>${fN(r.d)}</td><td class="${r.pos>=0?'pos':'neg'}">${fN(r.pos)}</td></tr>`}).join("")+
+      `<tr class="tot"><td>Total</td><td>${fN(tot.o)}</td><td>${fN(tot.n)}</td><td>${fN(tot.o-tot.n)}</td><td></td><td></td><td></td><td></td><td></td></tr></tbody>`;
+    return;
+  }
+  t.classList.remove("compact");
+  const am=TV.loan==="old"?b.am:R.am;
+  note.textContent=TV.loan==="old"?`Prêt de ${eur0(S.P0)} à ${pct(S.t0)} sur ${S.n0} mois, 1re échéance ${lab(b.startIdx)}. Les lignes après ${lab(b.refIdx)} sont celles que le rachat supprime.`:
+    `Prêt de ${eur0(R.L)} à ${pct(R.t)} sur ${R.n} mois, 1re échéance ${lab(b.refIdx+1)}.`;
+  const rows=am.rows; const data=TV.step==="y"?agg(rows):rows;
+  const T={pay:0,int:0,cap:0,ins:0};
+  let body=data.map(r=>{T.pay+=r.pay;T.int+=r.int;T.cap+=r.cap;T.ins+=r.ins;
+    const sep=TV.loan==="old"&&(TV.step==="m"?r.idx===b.refIdx+1:r.y===Math.floor((b.refIdx+1)/12));
+    return (sep?`<tr class="sep"><td colspan="7">Rachat au ${labS(b.refIdx)} · CRD ${eur(b.crd)} · IRA ${eur(b.ira)}</td></tr>`:"")+
+      `<tr><td>${TV.step==="y"?r.y+" ("+r.nb+" éch.)":r.k+" · "+labS(r.idx)}</td><td>${fN(r.pay)}</td><td>${fN(r.int)}</td><td>${fN(r.cap)}</td><td>${fN(r.ins)}</td><td>${fN(r.pay+r.ins)}</td><td>${fN(r.crd)}</td></tr>`}).join("");
+  t.innerHTML=`<thead><tr><th>${TV.step==="y"?"Année":"N° · date"}</th><th>Échéance</th><th>Intérêts</th><th>Capital</th><th>Assurance</th><th>Total</th><th>CRD fin</th></tr></thead><tbody>${body}
+   <tr class="tot"><td>Total</td><td>${fN(T.pay)}</td><td>${fN(T.int)}</td><td>${fN(T.cap)}</td><td>${fN(T.ins)}</td><td>${fN(T.pay+T.ins)}</td><td></td></tr></tbody>`;
+}
+
+function renderAlt(b){
+  const L=scenarios(b); const best=L.filter(a=>a.id!=="sq").reduce((a,c)=>c.gainT>a.gainT?c:a);
+  $("altTbl").innerHTML=`<thead><tr><th>Scénario</th><th>Durée</th><th>Taux</th><th>Mensualité</th><th>Gain / mois</th><th>Trésorerie</th><th>Gain total</th><th>VAN</th><th>Point mort</th><th>Objectif client</th></tr></thead><tbody>`+
+   L.map(a=>`<tr class="${a===best?'best':''}"><td class="txt"><b>${a.id==="sq"?"":a.id+". "}${a.name}</b><br><span class="muted">${a.desc}</span></td><td>${a.n}</td><td>${pct(a.t)}</td><td>${fN(a.mTot)}</td><td class="${a.gainM>0?'pos':(a.gainM<0?'neg':'')}">${fN(a.gainM)}</td><td>${fN(a.cash)}</td><td class="${a.gainT>0?'pos':(a.gainT<0?'neg':'')}">${fN(a.gainT,0)}</td><td>${fN(a.van,0)}</td><td>${a.id==="sq"?"–":(a.pm===null?"non atteint":(a.pm<=1?"immédiat":a.pm+" mois"))}</td><td>${a.id==="sq"?"":(a.obj?'<span class="pill ok">Respecté</span>':(a.gainM>0?'<span class="pill mid">Durée modifiée</span>':'<span class="pill ko">Non</span>'))}</td></tr>`).join("")+`</tbody>`;
+  const Ns=[...new Set([120,180,b.nRem,240,300])].sort((x,y)=>x-y);
+  $("sensTbl").innerHTML=`<thead><tr><th>Durée</th><th>Taux</th><th>Prêt</th><th>Mensualité</th><th>Gain / mois</th><th>Gain total</th><th>TAEG</th></tr></thead><tbody>`+
+   Ns.map(n=>{const R=computeRefi({n,finIra:true,finFrais:true}); if(R.err) return ""; const gM=r2(b.mTot-R.mTot), gT=b.outflow-R.outflow;
+     return `<tr class="${n===b.nRem?'best':''}"><td>${n} mois (${fN(n/12,2)} ans)</td><td>${pct(R.t)}</td><td>${fN(R.L,0)}</td><td>${fN(R.mTot)}</td><td class="${gM>=0?'pos':'neg'}">${fN(gM)}</td><td class="${gT>=0?'pos':'neg'}">${fN(gT,0)}</td><td>${pct(R.taeg)}</td></tr>`}).join("")+`</tbody>`;
+}
+
+function renderSources(){
+  $("sources").innerHTML=`<h3>Sources</h3><ul class="plain">
+   <li>Énoncé « Cas BURATO », Masters INSEEC, Master 2 GP, séance du 30/09/2026 : données du prêt, barème, frais, assurance, date de référence.</li>
+   <li>IRA : Code de la consommation, art. L313-47 et R313-25 (plafond : un semestre d'intérêts au taux moyen du prêt, dans la limite de 3 % du CRD avant remboursement).</li>
+   <li>Garantie : <a href="https://www.creditlogement.fr/particuliers/simulateur-frais-de-garantie/" target="_blank" rel="noopener">simulateur Crédit Logement</a>, pages <a href="https://www.creditlogement.fr/particuliers/tarification-classic/" target="_blank" rel="noopener">Classic</a> et <a href="https://www.creditlogement.fr/particuliers/tarification-initio/" target="_blank" rel="noopener">Initio</a>.</li>
+   <li>Usure : <a href="https://www.banque-france.fr/fr/statistiques/taux-et-cours/taux-dusure-2026-q4" target="_blank" rel="noopener">Banque de France, taux d'usure 2026-T4</a> (publication du 28/09/2026).</li>
+   <li>Changement d'assurance emprunteur à tout moment : loi n° 2022-270 du 28/02/2022 (dite « Lemoine »), Code des assurances art. L113-12-2.</li>
+  </ul>
+  <h3 style="margin-top:18px">Limites et hypothèses</h3><ul class="plain">
+   <li>Barème Crédit Logement reconstitué par relevés du simulateur (formule FMG = 0,89 % × L + 230 €, exacte sur les 12 montants testés) ; il n'est pas publié et peut changer. La restitution (≈ 71,07 %) est indicative.</li>
+   <li>La commission de caution de 850 € a été constatée à partir de 350 k€ ; en dessous, elle est plus faible (500 € à 100 k€, 750 € à 300 k€).</li>
+   <li>Tranches du barème bancaire interprétées en mois : 5–10 ans = 60 à 120, 11–15 ans = 121 à 180, 16–20 ans = 181 à 240, 21–25 ans = 241 à 300.</li>
+   <li>Aucune donnée sur la garantie du prêt actuel : frais de mainlevée d'hypothèque ou restitution d'un FMG antérieur non intégrés.</li>
+   <li>Assurance : quotité 100 % par tête et taux sur capital initial, conformément à l'énoncé ; la délégation seule (scénario E) suppose que ces taux sont accessibles sur le prêt actuel.</li>
+   <li>Taux d'effort calculé sur les seules mensualités de ce prêt ; les autres charges du ménage ne sont pas connues. L'application de la norme HCSF (35 %, décision D-HCSF-2021-7) à une opération de rachat est à vérifier.</li>
+   <li>Renégociation interne : taux et frais d'avenant non fournis, saisis par hypothèse.</li>
+   <li>Les montants sont exprimés en euros courants ; un taux d'actualisation peut être saisi pour obtenir une VAN.</li>
+  </ul>`;
+}
+
+/* ---------- graphique SVG ---------- */
+function lineChart(el,series,opt){
+  const W=opt.W||480,H=opt.H||230,m={l:56,r:12,t:10,b:26};
+  const xs=series.flatMap(s=>s.pts.map(p=>p.x)), ys=series.flatMap(s=>s.pts.map(p=>p.y));
+  const x0=Math.min(...xs),x1=Math.max(...xs); let y0=Math.min(0,...ys),y1=Math.max(...ys);
+  const step=niceStep((y1-y0)/4); y0=Math.floor(y0/step)*step; y1=Math.ceil(y1/step)*step;
+  const X=x=>m.l+(x-x0)/(x1-x0||1)*(W-m.l-m.r), Y=y=>m.t+(1-(y-y0)/(y1-y0||1))*(H-m.t-m.b);
+  let g="";
+  for(let v=y0;v<=y1+1e-6;v+=step){g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="${v===0&&opt.zero?1.2:0.6}"/><text x="${m.l-8}" y="${Y(v)+4}" text-anchor="end" font-size="11.5" fill="var(--ink-3)" font-family="var(--f-mono)">${fmtK(v)}</text>`;}
+  const ys0=Math.floor(x0/12), ys1=Math.floor(x1/12); const every=Math.max(1,Math.ceil((ys1-ys0)/8));
+  for(let y=ys0+1;y<=ys1;y+=every){const xi=y*12; g+=`<text x="${X(xi)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--ink-3)" font-family="var(--f-mono)">${y}</text><line x1="${X(xi)}" x2="${X(xi)}" y1="${H-m.b}" y2="${H-m.b+4}" stroke="var(--line)"/>`;}
+  series.forEach(s=>{const d=s.pts.map((p,i)=>(i?"L":"M")+X(p.x).toFixed(1)+" "+Y(p.y).toFixed(1)).join("");
+    if(opt.area&&s.area!==false){g+=`<path d="${d}L${X(s.pts[s.pts.length-1].x)} ${Y(0)}L${X(s.pts[0].x)} ${Y(0)}Z" fill="${s.c}" fill-opacity=".12" stroke="none"/>`;}
+    g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="2" stroke-linejoin="round"${s.dash?' stroke-dasharray="5 4"':''}/>`;
+    const e=s.pts[s.pts.length-1]; g+=`<circle cx="${X(e.x)}" cy="${Y(e.y)}" r="4" fill="${s.c}" stroke="var(--surface)" stroke-width="2"/>`;});
+  if(opt.marker&&opt.marker.x>=x0&&opt.marker.x<=x1){const mx=X(opt.marker.x); const anchor=mx>W*0.7?"end":"start"; const dx=anchor==="end"?-6:6;
+    g+=`<line x1="${mx}" x2="${mx}" y1="${m.t}" y2="${H-m.b}" stroke="var(--good)" stroke-width="1.5"/><circle cx="${mx}" cy="${Y(opt.marker.y)}" r="5" fill="var(--good)" stroke="var(--surface)" stroke-width="2"/><text x="${mx+dx}" y="${m.t+12}" text-anchor="${anchor}" font-size="12" font-weight="600" fill="var(--good)" font-family="var(--f-body)">${opt.marker.label}</text>`;}
+  g+=`<line class="xh" y1="${m.t}" y2="${H-m.b}" stroke="var(--ink-3)" stroke-dasharray="3 3" opacity="0"/>`;
+  series.forEach((s,i)=>g+=`<circle class="hd hd${i}" r="4.5" fill="${s.c}" stroke="var(--surface)" stroke-width="2" opacity="0"/>`);
+  g+=`<rect x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent" class="hit"/>`;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${series.map(s=>s.name).join(", ")}">${g}</svg><div class="tip"></div>`;
+  const svg=el.querySelector("svg"), tip=el.querySelector(".tip"), xh=el.querySelector(".xh");
+  const move=ev=>{const rc=svg.getBoundingClientRect(); const px=(ev.clientX-rc.left)/rc.width*W; const xv=Math.round(x0+(px-m.l)/(W-m.l-m.r)*(x1-x0));
+    if(xv<x0||xv>x1){hide();return;} xh.setAttribute("x1",X(xv));xh.setAttribute("x2",X(xv));xh.setAttribute("opacity",1);
+    let html=`<b>${lab(xv)}</b>`; series.forEach((s,i)=>{const p=s.pts.find(p=>p.x===xv); const c=el.querySelector(".hd"+i);
+      if(p){c.setAttribute("cx",X(p.x));c.setAttribute("cy",Y(p.y));c.setAttribute("opacity",1);html+=`<br>${s.name} : ${eur0(p.y)}`;} else c.setAttribute("opacity",0);});
+    tip.innerHTML=html; tip.style.left=(X(xv)/W*rc.width)+"px"; tip.style.top=(m.t/H*rc.height+10)+"px"; tip.style.opacity=1;};
+  const hide=()=>{tip.style.opacity=0;xh.setAttribute("opacity",0);el.querySelectorAll(".hd").forEach(c=>c.setAttribute("opacity",0));};
+  svg.addEventListener("pointermove",move); svg.addEventListener("pointerleave",hide);
+}
+function niceStep(r){const p=Math.pow(10,Math.floor(Math.log10(r||1)));const n=r/p;return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p}
+function fmtK(v){return Math.abs(v)>=1000?fN(v/1000,0)+" k€":fN(v,0)+" €"}
+
+/* ---------- formulaire ---------- */
+const NUM=["P0","t0","n0","insM0","insF0","q0","iraPct","iraMois","nNew","fraisDos","insM1","insF1","q1","fmgPct","fmgFix","comm","rest","rev","actu","u1","u2","u3","renegT","renegF"];
+const TXT=["d0","dRef","formule"], CHK=["keepDur","finIra","finFrais"];
+function fill(){NUM.forEach(k=>$(k).value=S[k]);TXT.forEach(k=>$(k).value=S[k]);CHK.forEach(k=>$(k).checked=S[k]);
+  $("nNew").disabled=S.keepDur;
+  $("bareme").innerHTML=S.bareme.map((r,i)=>`<tr><td><input aria-label="mois min tranche ${i+1}" data-b="${i},0" type="number" value="${r[0]}"></td><td><input aria-label="mois max tranche ${i+1}" data-b="${i},1" type="number" value="${r[1]}"></td><td><input aria-label="taux tranche ${i+1}" data-b="${i},2" type="number" step="0.01" value="${r[2]}"></td></tr>`).join("");}
+function read(){NUM.forEach(k=>{const v=parseFloat($(k).value);if(!isNaN(v))S[k]=v;});TXT.forEach(k=>{if($(k).value)S[k]=$(k).value});CHK.forEach(k=>S[k]=$(k).checked);
+  document.querySelectorAll("[data-b]").forEach(inp=>{const[i,j]=inp.dataset.b.split(",").map(Number);const v=parseFloat(inp.value);if(!isNaN(v))S.bareme[i][j]=v;});
+  $("nNew").disabled=S.keepDur; S.cabinet=$("cabinet").value.trim(); S.conseiller=$("conseiller").value.trim();}
+document.querySelector("aside.params").addEventListener("input",()=>{read();render();});
+document.querySelector("aside.params").addEventListener("change",()=>{read();render();});
+$("reset").addEventListener("click",()=>{S=JSON.parse(JSON.stringify(DEF));fill();render();});
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",x===b));
+  document.querySelectorAll("section.panel").forEach(p=>p.hidden=p.id!=="p-"+b.dataset.tab);}));
+document.querySelectorAll("[data-loan]").forEach(b=>b.addEventListener("click",()=>{TV.loan=b.dataset.loan;document.querySelectorAll("[data-loan]").forEach(x=>x.setAttribute("aria-pressed",x===b));render();}));
+document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{TV.view=b.dataset.view;document.querySelectorAll("[data-view]").forEach(x=>x.setAttribute("aria-pressed",x===b));render();}));
+document.querySelectorAll("[data-step]").forEach(b=>b.addEventListener("click",()=>{TV.step=b.dataset.step;document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{TV.view=b.dataset.view;document.querySelectorAll("[data-view]").forEach(x=>x.setAttribute("aria-pressed",x===b));render();}));
+document.querySelectorAll("[data-step]").forEach(x=>x.setAttribute("aria-pressed",x===b));render();}));
+if(location.hash){const t=document.querySelector(`.tab[data-tab="${location.hash.slice(1)}"]`); if(t) t.click();}
+
+/* ---------- export du rapport client (PDF) ---------- */
+const DL=(window.claude&&window.claude.use)?window.claude.use("downloads"):Promise.resolve(null);
+const P_=t=>String(t).replace(/[  ]/g," ").replace(/−/g,"-").replace(/≤/g,"<=").replace(/≥/g,">=").replace(/→/g,"->").replace(/—/g,"-");
+const pe=x=>P_(eur(x)), pe0=x=>P_(eur0(x));
+function buildPdf(){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a4"});
+  const b=LAST.b, R=LAST.R, BE=LAST.BE, alts=scenarios(b);
+  const W=210, M=18, CW=W-2*M; let y=M;
+  const C={ink:[23,33,43],ink2:[74,85,96],ink3:[110,120,128],acc:[10,127,168],old:[192,120,42],good:[46,125,79],bad:[176,58,46],line:[217,221,213],soft:[237,239,234],accSoft:[221,238,244],goodSoft:[225,241,230]};
+  const col=(c,t="text")=>t==="text"?doc.setTextColor(...c):t==="fill"?doc.setFillColor(...c):doc.setDrawColor(...c);
+  const need=h=>{if(y+h>297-20){doc.addPage();y=M;}};
+  const para=(t,{size=10,color=C.ink2,gap=2,bold=false}={})=>{doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(size);col(color);
+    const lines=doc.splitTextToSize(P_(t),CW); const lh=size*0.42; need(lines.length*lh+gap); doc.text(lines,M,y+lh*0.8); y+=lines.length*lh+gap;};
+  const h2=(num,t)=>{need(16); y+=3; doc.setFont("helvetica","bold");doc.setFontSize(8);col(C.acc);doc.text(P_(num),M,y+3);
+    doc.setFontSize(13);col(C.ink);doc.text(P_(t),M+8,y+3.4); y+=6; col(C.line,"draw");doc.setLineWidth(0.3);doc.line(M,y,W-M,y); y+=4;};
+  const table=(head,body,opt={})=>{doc.autoTable({startY:y,margin:{left:M,right:M},head:head?[head.map(P_)]:undefined,body:body.map(r=>r.map(c=>typeof c==="object"&&c!==null?{...c,content:P_(c.content)}:P_(c))),
+      theme:"plain",styles:{font:"helvetica",fontSize:8.8,cellPadding:{top:1.6,bottom:1.6,left:2,right:2},textColor:C.ink,lineColor:C.line,lineWidth:{bottom:0.2}},
+      headStyles:{fontStyle:"bold",textColor:C.ink3,fontSize:7.8,lineWidth:{bottom:0.4}},
+      columnStyles:opt.cols||{},didParseCell:d=>{if(d.column.index>0&&!opt.leftAll)d.cell.styles.halign="right"; if(opt.bold&&d.section==="body"&&opt.bold.includes(d.row.index)){d.cell.styles.fontStyle="bold";d.cell.styles.fillColor=C.soft;}
+        if(opt.hl&&d.section==="body"&&opt.hl.includes(d.row.index)){d.cell.styles.fillColor=C.goodSoft;}}, ...(opt.extra||{})});
+    y=doc.lastAutoTable.finalY+4;};
+  const gainM=r2(b.mTot-R.mTot), gainT=b.outflow-R.outflow, op=b.ira+S.fraisDos+R.garDebl;
+  const today=new Date(), dstr=String(today.getDate()).padStart(2,"0")+"/"+String(today.getMonth()+1).padStart(2,"0")+"/"+today.getFullYear();
+
+  // En-tête
+  col(C.acc,"fill"); doc.rect(0,0,W,3,"F");
+  doc.setFont("helvetica","bold");doc.setFontSize(8);col(C.ink3);doc.text(P_("ÉTUDE DE FINANCEMENT · RACHAT DE PRÊT IMMOBILIER"),M,y+2);
+  doc.setFontSize(22);col(C.ink);doc.text("M. et Mme BURATO",M,y+12);
+  doc.setFont("helvetica","normal");doc.setFontSize(9.5);col(C.ink2);
+  const who=[S.cabinet,S.conseiller].filter(Boolean).join(" · ");
+  doc.text(P_(`Étude établie le ${dstr}${who?" par "+who:""} · Date d'effet du rachat : ${labS(b.refIdx+1).replace(/^(\d\d)\//,"01/$1/")}`),M,y+18.5);
+  y+=25;
+  // Verdict
+  const ok=gainT>0&&gainM>0; col(ok?C.goodSoft:[246,225,222],"fill"); doc.roundedRect(M,y,CW,11,1.5,1.5,"F");
+  doc.setFont("helvetica","bold");doc.setFontSize(10.5);col(ok?C.good:C.bad);
+  doc.text(P_(ok?`Le rachat répond à votre objectif : mensualité réduite de ${eur(gainM)} et ${eur0(gainT)} d'économie nette.`:"Avec ces conditions, le rachat ne répond pas à votre objectif."),M+4,y+7); y+=16;
+  // KPI
+  const K=[["Mensualité actuelle",pe(b.mTot),"assurance comprise"],["Nouvelle mensualité",pe(R.mTot),`${fN(R.t)} % sur ${R.n} mois`],["Gain mensuel",pe(gainM),`soit ${pe0(gainM*12)} par an`],["Gain total net",pe0(gainT),"après frais du rachat"]];
+  const kw=(CW-9)/4; K.forEach((k,i)=>{const x=M+i*(kw+3); col(i>=2?C.accSoft:C.soft,"fill"); doc.roundedRect(x,y,kw,20,1.5,1.5,"F");
+    doc.setFont("helvetica","normal");doc.setFontSize(7.8);col(C.ink3);doc.text(P_(k[0]),x+3,y+5);
+    doc.setFont("helvetica","bold");doc.setFontSize(13);col(i>=2?(gainM>=0?C.good:C.bad):C.ink);doc.text(P_(k[1]),x+3,y+12.5);
+    doc.setFont("helvetica","normal");doc.setFontSize(7.5);col(C.ink2);doc.text(P_(k[2]),x+3,y+17);}); y+=26;
+
+  h2("1","Votre demande");
+  para(`Vous remboursez le prêt de votre résidence principale depuis ${lab(b.startIdx)}. Vous souhaitez savoir s'il est intéressant de le faire racheter par un autre établissement, en conservant la durée restante (${b.nRem} mois, soit ${fN(b.nRem/12,2)} ans) et en réduisant votre mensualité. L'étude retient un rachat effectif au ${labS(b.refIdx).replace(/^(\d\d)\//,"31/$1/")}, après le paiement de l'échéance de ${lab(b.refIdx)}.`);
+
+  h2("2","Votre situation actuelle");
+  table(["Prêt actuel",""],[["Montant emprunté",pe0(S.P0)],["Taux nominal hors assurance",fN(S.t0)+" %"],["Durée initiale",S.n0+" mois"],["Échéance hors assurance",pe(b.am.m)],
+    ["Assurance emprunteur (deux assurés, quotité 100 %)",pe(b.ins0)+" / mois"],["Mensualité totale",pe(b.mTot)],["Capital restant dû au 31/12/2026",pe(b.crd)],["Échéances restantes",b.nRem+" mois"],
+    ["Intérêts et assurance restant à payer",pe(b.remInt+b.remIns)]],{bold:[5,6],cols:{0:{cellWidth:110}}});
+
+  h2("3","La proposition de la future banque");
+  table(["Composition du nouveau prêt",""],[["Remboursement du capital restant dû",pe(b.crd)],["Indemnités de remboursement anticipé (6 mois d'intérêts, plafond légal)",pe(b.ira)+(S.finIra?"":" (payées comptant)")],
+    ["Frais de dossier",pe(S.fraisDos)+(S.finFrais?"":" (payés comptant)")],["Garantie Crédit Logement (estimation)",pe(R.garDebl)+(S.finFrais?"":" (payée comptant)")],["Montant du nouveau prêt",pe(R.L)]],{bold:[4],cols:{0:{cellWidth:110}}});
+  table(["Conditions",""],[["Taux nominal hors assurance",fN(R.t)+" % (tranche "+(S.bareme.find(x=>R.n>=x[0]&&R.n<=x[1])||[]).slice(0,2).map(v=>Math.ceil(v/12)).join(" à ")+" ans)"],["Durée",R.n+" mois"],["Échéance hors assurance",pe(R.am.m)],
+    ["Assurance déléguée (M. "+fN(S.insM1)+" %, Mme "+fN(S.insF1)+" % du capital)",pe(R.insM)+" / mois"],["Mensualité totale",pe(R.mTot)],["TAEG estimé",fN(R.taeg)+" % (seuil de l'usure : "+fN(usureFor(R.n))+" %)"],
+    ["Restitution estimée de la garantie en fin de prêt",pe0(R.restNet)]],{bold:[4],cols:{0:{cellWidth:110}}});
+
+  h2("4","Ce que vous économisez");
+  table(["Coûts restant à payer à partir de janvier 2027","Prêt actuel","Rachat","Écart"],[
+    ["Intérêts",pe(b.remInt),pe(R.sumInt),sgn(R.sumInt-b.remInt)],["Assurance emprunteur",pe(b.remIns),pe(R.sumIns),sgn(R.sumIns-b.remIns)],
+    ["Indemnités de remboursement anticipé","-",pe(b.ira),sgn(b.ira)],["Frais de dossier","-",pe(S.fraisDos),sgn(S.fraisDos)],["Garantie, nette de la restitution estimée","-",pe(R.garDebl-R.restNet),sgn(R.garDebl-R.restNet)],
+    ["Total",pe(b.remInt+b.remIns),pe(R.sumInt+R.sumIns+op-R.restNet),sgn(R.sumInt+R.sumIns+op-R.restNet-b.remInt-b.remIns)]],{bold:[5],cols:{0:{cellWidth:70}}});
+  para(`Votre mensualité baisse de ${pe(gainM)}, soit ${pe0(gainM*12)} par an. Sur la durée restante, l'économie nette s'élève à ${pe0(gainT)} en euros courants, frais du rachat déduits.`);
+
+  h2("5","À partir de quand le rachat est-il gagnant ?");
+  para(BE.pm===null?"Le point mort n'est pas atteint sur la durée du prêt.":
+    `Les frais du rachat étant intégrés au nouveau prêt, votre capital restant dû démarre ${pe0(BE.a[0].d)} au-dessus de celui du prêt actuel. Les économies de mensualités et un remboursement du capital plus rapide comblent cet écart au bout de ${BE.pm} mois, en ${lab(b.refIdx+BE.pm)} : c'est le point mort. Si vous vendez votre bien ou remboursez votre prêt avant cette date, le rachat vous aura coûté plus qu'il ne vous aura rapporté.`);
+  need(62); drawChart(doc,M,y,CW,56,BE.a.map(r=>({x:r.idx,y:r.pos})),BE.a.map(r=>({x:r.idx,y:r.cum})),BE.pm!==null&&BE.pm>0?{x:b.refIdx+BE.pm,y:BE.a[BE.pm].pos,label:"Point mort : "+lab(b.refIdx+BE.pm)}:null,C); y+=62;
+
+  h2("6","Les solutions étudiées");
+  const pick=alts.filter(a=>["A","B","E","F","G"].includes(a.id));
+  table(["Solution","Mensualité","Baisse / mois","Épargne mobilisée","Économie totale","Point mort"],
+    pick.map(a=>[a.name,pe(a.mTot),pe(a.gainM),pe0(a.cash),pe0(a.gainT),a.pm===null?"non atteint":(a.pm<=1?"immédiat":a.pm+" mois")]),{cols:{0:{cellWidth:56}}});
+  para(`Les deux renégociations supposent que votre banque actuelle accepte un taux de ${fN(S.renegT)} %${S.renegF?" avec "+pe0(S.renegF)+" de frais":" sans frais"} : ce sont des hypothèses, pas des propositions reçues.`,{size:8.5,color:C.ink3});
+
+  h2("7","Notre recommandation");
+  const A=alts.find(a=>a.id==="A"), B=alts.find(a=>a.id==="B"), E=alts.find(a=>a.id==="E");
+  const brk=breakEvenRenegRate(b,gainT);
+  if(ok) para(`Le rachat proposé répond à votre objectif : vous conservez la durée restante et votre mensualité baisse de ${pe(gainM)}. L'économie nette de ${pe0(gainT)} suppose de conserver ce financement au-delà du point mort (${lab(b.refIdx+(BE.pm||0))}).`);
+  else para("Avec les conditions actuelles, le rachat ne réduit pas le coût total de votre crédit : nous ne vous recommandons pas de le mettre en place en l'état.");
+  para(`Avant de signer, nous vous conseillons de présenter cette offre à votre banque actuelle. Une renégociation évite les indemnités de remboursement anticipé et les frais de garantie : associée à un changement d'assurance, elle procure la même économie que le rachat dès un taux de ${fN(brk)} %.`);
+  if(B&&A&&B.gainT>A.gainT) para(`Si vous disposez d'une épargne disponible de ${pe0(B.cash)}, régler les frais comptant porte l'économie à ${pe0(B.gainT)} (${pe0(B.gainT-A.gainT)} de plus), mais immobilise cette somme : à comparer avec ce qu'elle vous rapporte aujourd'hui.`);
+  para(`Enfin, la loi vous permet de changer d'assurance emprunteur à tout moment. Même sans rachat, cette seule démarche réduirait votre mensualité de ${pe(E.gainM)}.`);
+
+  h2("8","Hypothèses et points de vigilance");
+  ["Le coût de la garantie Crédit Logement est une estimation issue de son simulateur ; le montant restitué en fin de prêt varie chaque trimestre et n'est pas garanti.",
+   "Les indemnités de remboursement anticipé sont calculées selon le plafond légal (article R313-25 du Code de la consommation) ; le montant exact dépend de votre contrat.",
+   "La nature de la garantie de votre prêt actuel ne nous est pas connue : frais de levée d'hypothèque ou restitution de caution éventuels non intégrés.",
+   "La nouvelle assurance doit présenter des garanties équivalentes (décès, invalidité, incapacité) et être acceptée par la banque.",
+   "Montants en euros courants, arrondis au centime ; ils ne tiennent pas compte de la rémunération possible de votre épargne."].forEach(t=>{doc.setFontSize(9);const l=doc.splitTextToSize(P_(t),CW-5);need(l.length*3.9+1.5);col(C.acc,"fill");doc.circle(M+1.2,y+2.1,0.7,"F");col(C.ink2);doc.setFont("helvetica","normal");doc.text(l,M+5,y+3);y+=l.length*3.9+1.5;});
+  y+=2; para("Document établi à titre indicatif à partir des informations communiquées et des conditions de marché connues à sa date. Il ne constitue pas une offre de prêt : seule l'offre émise par l'établissement prêteur engage celui-ci.",{size:8,color:C.ink3});
+
+  // Pied de page
+  const n=doc.getNumberOfPages(); for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(7.5);col(C.ink3);
+    doc.text(P_("M. et Mme BURATO · Étude de rachat de prêt · "+dstr),M,297-10); doc.text(`${i} / ${n}`,W-M,297-10,{align:"right"});}
+  return doc;
+}
+function drawChart(doc,x,y,w,h,pos,cum,marker,C){
+  const l=16,bm=7, X0=x+l, W=w-l, H=h-bm-8, Y0=y+8;
+  const xs=pos.map(p=>p.x), x0=Math.min(...xs), x1=Math.max(...xs); const all=[...pos,...cum].map(p=>p.y);
+  let y0=Math.min(0,...all), y1=Math.max(...all); const st=niceStep((y1-y0)/4); y0=Math.floor(y0/st)*st; y1=Math.ceil(y1/st)*st;
+  const X=v=>X0+(v-x0)/(x1-x0)*W, Y=v=>Y0+(1-(v-y0)/(y1-y0))*H;
+  doc.setFont("helvetica","normal");doc.setFontSize(7);
+  doc.setDrawColor(...C.acc);doc.setLineWidth(0.6);doc.line(x,y+2,x+5,y+2);doc.setTextColor(...C.ink2);doc.text(P_("Position nette si sortie à la date"),x+6.5,y+3);
+  doc.setDrawColor(...C.ink3);doc.setLineDashPattern([1,1],0);doc.line(x+62,y+2,x+67,y+2);doc.setLineDashPattern([],0);doc.text(P_("Économie cumulée sur les mensualités"),x+68.5,y+3);
+  for(let v=y0;v<=y1+1e-6;v+=st){doc.setDrawColor(...C.line);doc.setLineWidth(v===0?0.35:0.15);doc.line(X0,Y(v),X0+W,Y(v));doc.setTextColor(...C.ink3);doc.text(P_(fmtK(v)),X0-2,Y(v)+1,{align:"right"});}
+  for(let yr=Math.floor(x0/12)+1;yr<=Math.floor(x1/12);yr+=3){doc.text(String(yr),X(yr*12),Y0+H+4.5,{align:"center"});}
+  const path=(pts,c,dash)=>{doc.setDrawColor(...c);doc.setLineWidth(dash?0.35:0.6);if(dash)doc.setLineDashPattern([1,1],0);for(let i=1;i<pts.length;i++)doc.line(X(pts[i-1].x),Y(pts[i-1].y),X(pts[i].x),Y(pts[i].y));doc.setLineDashPattern([],0);};
+  path(cum,C.ink3,true); path(pos,C.acc,false);
+  if(marker){doc.setDrawColor(...C.good);doc.setLineWidth(0.4);doc.line(X(marker.x),Y0,X(marker.x),Y0+H);doc.setFillColor(...C.good);doc.circle(X(marker.x),Y(marker.y),1,"F");
+    doc.setFont("helvetica","bold");doc.setTextColor(...C.good);doc.text(P_(marker.label),X(marker.x)+1.5,Y0+3);}
+}
+async function exportPdf(){
+  const btn=$("btnPdf"), st=$("pdfStatus"); btn.disabled=true; st.textContent="Préparation du PDF…";
+  try{
+    if(!window.jspdf||!window.jspdf.jsPDF) throw {code:"lib",message:"bibliothèque PDF non chargée"};
+    const doc=buildPdf(); const blob=doc.output("blob");
+    const dl=await DL;
+    const d=new Date(); const f=`Etude-rachat-BURATO-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.pdf`;
+    if(!dl){doc.save(f); st.textContent="Rapport téléchargé."; return;}
+    const r=await dl.save({filename:f,data:blob}); st.textContent=r.status==="delivered"?"Rapport transmis.":"Rapport enregistré.";
+  }catch(e){const c=e&&e.code; st.textContent=c==="declined"?"Export annulé.":c==="rate_limited"?"Une demande est déjà ouverte, réessayez dans un instant.":c==="lib"?"Le module PDF n'a pas pu se charger : rechargez la page.":"L'export n'est pas disponible dans cette vue.";}
+  finally{btn.disabled=false;}
+}
+
+$("btnPdf").addEventListener("click",exportPdf);
+window.__buildPdf=buildPdf;
+
+fill(); render();
+</script>
+
+</body>
+</html>
